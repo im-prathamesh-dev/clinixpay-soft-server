@@ -1,22 +1,57 @@
-const express = require('express');
-const { connect } = require('./config/connection');
-const app = express();
-const port = process.env.PORT || 3000;
-require('dotenv').config();
-const mongoose = require('mongoose');
+/**
+ * ClinixPay Main Server
+ * Production-ready Express setup
+ */
 
-// Middleware
-app.use(express.json());
+require("dotenv").config(); // Load env FIRST
+
+const express = require("express");
+const http = require("http");
+const connectDB = require("./config/connection");
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+/* -------------------- Middleware -------------------- */
+app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-// Connect to MongoDB
-connect();
-
-app.get('/', (req, res) => {
-    res.send('ClinixPay Main Server is running');
+/* -------------------- Health Check -------------------- */
+app.get("/", (req, res) => {
+  res.status(200).json({
+    status: "success",
+    message: "ClinixPay Main Server is running 🚀",
+  });
 });
 
-// Start the server
-app.listen(port, () => {
-    console.log(`Server is running on port ${port}`);
-});
+/* -------------------- Start Server -------------------- */
+const startServer = async () => {
+  try {
+    await connectDB(); // DB first, server later
+
+    const server = http.createServer(app);
+
+    server.listen(PORT, () => {
+      console.log(`🚀 Server running on port ${PORT}`);
+    });
+
+    /* ---------------- Graceful Shutdown ---------------- */
+    const shutdown = async () => {
+      console.log("🔴 Shutting down server...");
+      await require("mongoose").connection.close();
+      server.close(() => {
+        console.log("✅ Server closed gracefully");
+        process.exit(0);
+      });
+    };
+
+    process.on("SIGINT", shutdown);
+    process.on("SIGTERM", shutdown);
+
+  } catch (error) {
+    console.error("❌ Server startup failed:", error.message);
+    process.exit(1);
+  }
+};
+
+startServer();
