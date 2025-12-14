@@ -11,16 +11,16 @@ if (!MONGO_URI) {
 const connectDB = async () => {
   try {
     await mongoose.connect(MONGO_URI, {
-      autoIndex: false,        // Disable index creation in production
-      maxPoolSize: 10,         // Maintain up to 10 socket connections
-      serverSelectionTimeoutMS: 5000, // Keep trying for 5s
-      socketTimeoutMS: 45000,  // Close sockets after 45s of inactivity
+      autoIndex: false,        
+      maxPoolSize: 10,         
+      serverSelectionTimeoutMS: 5000, 
+      socketTimeoutMS: 45000,  
     });
 
     console.log("✅ MongoDB connected successfully");
   } catch (error) {
     console.error("❌ MongoDB connection failed:", error.message);
-    process.exit(1); // Stop app if DB connection fails
+    process.exit(1); 
   }
 };
 
