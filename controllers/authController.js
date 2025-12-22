@@ -19,26 +19,31 @@ exports.register = async (req, res) => {
       password
     } = req.body;
 
+    console.log("REQ BODY:", req.body);
+
     // 1️⃣ Check if user already exists
     const existingUser = await Customer.findOne({ email });
     if (existingUser) {
-      return res.status(409).json({ message: "Email already registered" });
+      return res.status(409).json({
+        success: false,
+        message: "Email already registered"
+      });
     }
 
     // 2️⃣ Validate license from License Server
-    // const licenseRes = await axios.post(
-    //   process.env.LICENSE_SERVER_VALIDATE_URL,
-    //   { email, licenseKey: clinixPayLicKey }
-    // );
+    const licenseRes = await axios.post(
+      process.env.LICENSE_SERVER_VALIDATE_URL,
+      { email, licenseKey: clinixPayLicKey }
+    );
 
-    // if (!licenseRes.data.valid) {
-    //   return res.status(400).json({
-    //     message: "Invalid or expired license key"
-    //   });
-    // }
+    if (!licenseRes.data.valid) {
+      return res.status(400).json({
+        message: "Invalid or expired license key"
+      });
+    }
 
     // 3️⃣ Create customer
-    await Customer.create({
+    const customer = await Customer.create({
       fullName,
       storeName,
       location,
@@ -50,27 +55,27 @@ exports.register = async (req, res) => {
       password
     });
 
-    // 4️⃣ Activate license
-    // await axios.post(
-    //   process.env.LICENSE_SERVER_ACTIVATE_URL,
-    //   { email, licenseKey: clinixPayLicKey }
-    // );
-
-    res.status(201).json({
-      message: "Registration successful. Please login."
+    
+   return res.status(201).json({
+      success: true,
+      message: "Registration successful. Please login.",
+      user: {
+        id: customer._id,
+        fullName: customer.fullName,
+        email: customer.email,
+        storeName: customer.storeName
+      }
     });
 
   } catch (error) {
-    if (error.code === 11000) {
-      return res.status(409).json({ message: "Email already registered" });
-    }
-    res.status(500).json({
+    console.error("REGISTER ERROR:", error);
+    return res.status(500).json({
+      success: false,
       message: "Registration failed",
       error: error.message
     });
   }
 };
-
 /* =========================
    LOGIN
 ========================= */
@@ -81,48 +86,70 @@ exports.login = async (req, res) => {
     // 1️⃣ Find customer
     const customer = await Customer.findOne({ email }).select("+password");
     if (!customer) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({
+        success: false,
+        message: "User not found"
+      });
     }
 
     if (!customer.isActive) {
-      return res.status(403).json({ message: "Account is disabled" });
+      return res.status(403).json({
+        success: false,
+        message: "Account is disabled"
+      });
     }
 
     // 2️⃣ Check password
     const isMatch = await customer.comparePassword(password);
     if (!isMatch) {
-      return res.status(401).json({ message: "Invalid credentials" });
+      return res.status(401).json({
+        success: false,
+        message: "Invalid credentials"
+      });
     }
 
-    // 3️⃣ Check license status
+     // 3️⃣ 🔐 LICENSE SERVER CHECK
     // const licenseRes = await axios.post(
-    //   process.env.LICENSE_SERVER_STATUS_URL,
+    //   process.env.LICENSE_SERVER_LOGIN_CHECK_URL, // 👈 NEW ENV
     //   {
-    //     email,
+    //     email: customer.email,
     //     licenseKey: customer.clinixPayLicKey
+    //   },
+    //   {
+    //     timeout: 5000 // avoid hanging login
     //   }
     // );
 
-    // if (!licenseRes.data.active) {
+    // if (!licenseRes.data.allowed) {
     //   return res.status(403).json({
-    //     message: "License expired or suspended"
+    //     success: false,
+    //     message: licenseRes.data.message || "License invalid"
     //   });
     // }
 
-    // 4️⃣ Generate JWT
+      // 4️⃣ Generate JWT
     const token = jwt.sign(
       { customerId: customer._id, email },
       process.env.JWT_SECRET,
       { expiresIn: "1d" }
     );
 
-    res.json({
+    return res.json({
+      success: true,
       message: "Login successful",
-      token
+      token,
+      user: {
+        id: customer._id,
+        fullName: customer.fullName,
+        email: customer.email,
+        storeName: customer.storeName
+      }
     });
 
   } catch (error) {
-    res.status(500).json({
+    console.error("LOGIN ERROR:", error);
+    return res.status(500).json({
+      success: false,
       message: "Login failed",
       error: error.message
     });

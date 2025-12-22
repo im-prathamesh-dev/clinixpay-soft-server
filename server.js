@@ -3,7 +3,12 @@ require("dotenv").config();
 const express = require("express");
 const connectDB = require("./config/connection");
 const authRoutes = require("./routes/authRoutes");
+const customerRoutes = require("./routes/Customer/customerRoutes");
+const notificationRoutes = require("./routes/Admin/notificationRoute")
+const getNotificationRoutes = require("./routes/Customer/customerRoutes");
 const cors = require("cors");
+const adminAuth = require("./middlewares/adminAuth");
+const adminAuthRoutes = require("./routes/Admin/adminAuthRoutes");
 
 
 const app = express();
@@ -24,6 +29,10 @@ app.get("/", (req, res) => {
 
 /* Routes */
 app.use("/api/v1", authRoutes);
+app.use("/api/v1", customerRoutes);
+app.use("/api/v1/admin", adminAuthRoutes,notificationRoutes);
+app.use("/api/v1/customer", getNotificationRoutes);
+
 
 /* Start Server */
 connectDB();

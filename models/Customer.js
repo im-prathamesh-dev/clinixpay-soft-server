@@ -83,7 +83,8 @@ const registerSchema = new mongoose.Schema(
     required: true,
     trim: true,
     index: true,
-    minlength: 16
+    minlength: 12,
+    maxlength: 12
   },
 
   password: {
